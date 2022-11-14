@@ -1,36 +1,4 @@
-#include <stdint.h>
-#ifdef __unix__
-    #include <unistd.h>
-    #include <netdb.h>
-    #include <errno.h>
-    #include <arpa/inet.h>
-    #include <netinet/in.h>
-    #include <sys/socket.h>
-
-#elif defined(_WIN32) || defined(WIN32)
-    #include <winsock2.h>
-    #pragma comment(lib, "ws2_32.lib")
-
-    #define IS_WINDOWS 1
-    #define INET_ADDRSTRLEN 16
-
-#endif
-
-#define socket_send(fd, buffer, n, flag) send(fd, buffer, n, flags)
-#define socket_recv(fd, buffer, n, flag) recv(fd, buffer, n, flags);
-
-enum ERROR_CODES {
-    SOCKET_ATTRIBUTION_ERROR = -1,
-    CONNEXION_REFUSED = -2,
-    UNABLE_TO_BIND = -3,
-    UNABLE_TO_LISTEN = -4
-};
-
-typedef struct client_data {
-    char ip[INET_ADDRSTRLEN];
-    uint16_t port;
-} ClientData;
-
+#include "socketslib.h"
 
 int socket_client_init(const char* server_ip, uint16_t server_port)
 {
@@ -58,12 +26,17 @@ int socket_client_init(const char* server_ip, uint16_t server_port)
     return client;
 }
 
-int socket_server_init(const char* server_ip, const char* server_port)
+int socket_server_init(const char* server_ip, uint16_t server_port)
 {
+    #ifdef IS_WINDOWS
+        WSADATA WSAData;
+        WSAStartup(MAKEWORD(2,0), &WSAData);
+    #endif
+    
     int server = socket(AF_INET, SOCK_STREAM, 0);
     struct timeval tv;
 
-    struct sockaddr_in my_addr, peer_addr;
+    struct sockaddr_in my_addr;
     my_addr.sin_family = AF_INET;
     my_addr.sin_addr.s_addr = INADDR_ANY;
     
