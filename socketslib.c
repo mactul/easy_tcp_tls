@@ -1,9 +1,23 @@
-#include <netdb.h>
-#include <unistd.h>
-#include <errno.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
+#include <stdint.h>
+#ifdef __unix__
+    #include <unistd.h>
+    #include <netdb.h>
+    #include <errno.h>
+    #include <arpa/inet.h>
+    #include <netinet/in.h>
+    #include <sys/socket.h>
+
+#elif defined(_WIN32) || defined(WIN32)
+    #include <winsock2.h>
+    #pragma comment(lib, "ws2_32.lib")
+
+    #define IS_WINDOWS 1
+    #define INET_ADDRSTRLEN 16
+
+#endif
+
+#define socket_send(fd, buffer, n, flag) send(fd, buffer, n, flags)
+#define socket_recv(fd, buffer, n, flag) recv(fd, buffer, n, flags);
 
 enum ERROR_CODES {
     SOCKET_ATTRIBUTION_ERROR = -1,
@@ -12,9 +26,19 @@ enum ERROR_CODES {
     UNABLE_TO_LISTEN = -4
 };
 
+typedef struct client_data {
+    char ip[INET_ADDRSTRLEN];
+    uint16_t port;
+} ClientData;
+
 
 int socket_client_init(const char* server_ip, uint16_t server_port)
 {
+    #ifdef IS_WINDOWS
+        WSADATA WSAData;
+        WSAStartup(MAKEWORD(2,0), &WSAData);
+    #endif
+
     struct sockaddr_in my_addr;
     int client = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -28,14 +52,10 @@ int socket_client_init(const char* server_ip, uint16_t server_port)
     // This ip address is the server ip address
     my_addr.sin_addr.s_addr = inet_addr(server_ip);
     
-    socklen_t addr_size = sizeof my_addr;
     if (connect(client, (struct sockaddr*) &my_addr, sizeof my_addr) != 0)
         return CONNEXION_REFUSED;
     
     return client;
-}
-}
-}
 }
 
 int socket_server_init(const char* server_ip, const char* server_port)
@@ -59,23 +79,33 @@ int socket_server_init(const char* server_ip, const char* server_port)
          
     if (listen(server, 1) != 0)
         return UNABLE_TO_LISTEN;
-
-    socklen_t addr_size;
-    addr_size = sizeof(struct sockaddr_in);
-
-    while (1)
-    {
-        int acc = accept(server, (struct sockaddr*) &peer_addr, &addr_size);
-    }
+    
+    return server;
 }
 
-
-int socket_send(int fd, const void* buffer, size_t n, int flags)
+int socket_accept(int server_fd, ClientData* pclient_data)
 {
-    send(fd, buffer, n, flags);
+    struct sockaddr_in peer_addr;
+    int addr_size;
+    addr_size = sizeof(struct sockaddr_in);
+
+    int s = accept(server_fd, (struct sockaddr*) &peer_addr, &addr_size);
+
+    if(s > 0 && pclient_data != NULL)
+    {
+        inet_ntop(AF_INET, &(peer_addr.sin_addr), pclient_data->ip, INET_ADDRSTRLEN);
+        pclient_data->port = ntohs(peer_addr.sin_port);
+    }
+
+    return s;
 }
 
 void socket_close(int fd)
 {
-    close(fd);
+    #ifdef IS_WINDOWS
+        closesocket(fd);
+        WSACleanup();
+    #else
+        close(fd);
+    #endif
 }
