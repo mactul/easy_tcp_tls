@@ -1,10 +1,15 @@
 #include "socketslib.h"
+#include <stdio.h>
 
 int main()
 {
-    int client = socket_client_init("127.0.0.1", 3678);
+    SocketHandler client_handler;
+    char buffer[100] = "hello world\n";
+    socket_ssl_client_init(&client_handler, "127.0.0.1", 3678, NULL);
 
-    socket_send(client, "hello world", 13, 0);
+    socket_send(&client_handler, buffer, 15, 0);
 
-    socket_close(client);
+    Sleep(1000);
+
+    socket_close(&client_handler);
 }

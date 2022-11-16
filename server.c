@@ -1,16 +1,24 @@
 #include "socketslib.h"
 #include <stdio.h>
 
+//openssl req -x509 -newkey rsa:4096 -nodes -out ./cert.pem -keyout ./key.pem -days 365
+
 int main()
 {
     char buffer[1024];
-    int server = socket_server_init("127.0.0.1", 3678);
+    SocketHandler server_handler;
+    SocketHandler client_handler;
+    
+    printf("%d\n", socket_ssl_server_init(&server_handler, "127.0.0.1", 3678, "cert.pem", "key.pem"));
+    
+    printf("%d\n", socket_accept(&client_handler, &server_handler, NULL));
 
-    int s = socket_accept(server, NULL);
-
-    socket_recv(s, buffer, sizeof(buffer), 0);
+    socket_recv(&client_handler, buffer, sizeof(buffer), 0);
 
     printf("%s\n", buffer);
 
-    socket_close(server);
+    socket_close(&server_handler);
+    socket_close(&client_handler);
+
+    socket_cleanup();
 }
