@@ -42,10 +42,10 @@ typedef struct socket_handler {
     SSL_CTX* ctx;
 } SocketHandler;
 
-char socket_ssl_server_init(SocketHandler* server, const char* server_ip, uint16_t server_port, const char* public_key_fp, const char* private_key_fp);
+char socket_ssl_server_init(SocketHandler* server, const char* server_ip, uint16_t server_port, int max_connections, const char* public_key_fp, const char* private_key_fp);
 char socket_ssl_client_init(SocketHandler* client, const char* server_ip, uint16_t server_port, const char* sni_hostname);
 char socket_client_init(SocketHandler* client, const char* server_ip, uint16_t server_port);
-char socket_server_init(SocketHandler* server, const char* server_ip, uint16_t server_port);
+char socket_server_init(SocketHandler* server, const char* server_ip, uint16_t server_port, int max_connections);
 char socket_accept(SocketHandler* client, SocketHandler* server, ClientData* pclient_data);
 int socket_send(SocketHandler* s, const char* buffer, int n, int flags);
 int socket_recv(SocketHandler* s, char* buffer, int n, int flags);

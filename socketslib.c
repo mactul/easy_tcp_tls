@@ -63,14 +63,14 @@ char socket_client_init(SocketHandler* client, const char* server_ip, uint16_t s
     return 0;
 }
 
-char socket_ssl_server_init(SocketHandler* server, const char* server_ip, uint16_t server_port, const char* public_key_fp, const char* private_key_fp)
+char socket_ssl_server_init(SocketHandler* server, const char* server_ip, uint16_t server_port, int max_connections, const char* public_key_fp, const char* private_key_fp)
 {
     char error_code;
     SSL_library_init();
     OpenSSL_add_all_algorithms();  /* Load cryptos, et.al. */
     SSL_load_error_strings();   /* Bring in and register error messages */
 
-    error_code = socket_server_init(server, server_ip, server_port);
+    error_code = socket_server_init(server, server_ip, server_port, max_connections);
     if(error_code < 0)
         return error_code;
 
@@ -84,7 +84,7 @@ char socket_ssl_server_init(SocketHandler* server, const char* server_ip, uint16
     return 0;
 }
 
-char socket_server_init(SocketHandler* server, const char* server_ip, uint16_t server_port)
+char socket_server_init(SocketHandler* server, const char* server_ip, uint16_t server_port, int max_connections)
 {
     #ifdef IS_WINDOWS
         WSADATA WSAData;
@@ -110,7 +110,7 @@ char socket_server_init(SocketHandler* server, const char* server_ip, uint16_t s
     if (bind(server->fd, (struct sockaddr*) &my_addr, sizeof(my_addr)) != 0)
         return UNABLE_TO_BIND;
          
-    if (listen(server->fd, 1) != 0)
+    if (listen(server->fd, max_connections) != 0)
         return UNABLE_TO_LISTEN;
     
     return 0;

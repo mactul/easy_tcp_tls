@@ -9,7 +9,7 @@ int main()
     SocketHandler server_handler;
     SocketHandler client_handler;
     
-    printf("%d\n", socket_ssl_server_init(&server_handler, "127.0.0.1", 3678, "cert.pem", "key.pem"));
+    printf("%d\n", socket_ssl_server_init(&server_handler, "127.0.0.1", 3678, 1, "cert.pem", "key.pem"));
     
     printf("%d\n", socket_accept(&client_handler, &server_handler, NULL));
 
