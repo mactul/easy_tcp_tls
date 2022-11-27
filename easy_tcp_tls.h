@@ -1,25 +1,27 @@
 #include <stdint.h>
+#include <unistd.h>
 #include <openssl/ssl.h>
 #ifdef __unix__
-    #include <unistd.h>
     #include <netdb.h>
-    #include <errno.h>
     #include <arpa/inet.h>
     #include <netinet/in.h>
     #include <sys/socket.h>
 
     #define socket_cleanup() (void)0
+    #define socket_start() (void)0
 
 #elif defined(_WIN32) || defined(WIN32)
     #include <winsock2.h>
     #include <ws2tcpip.h>
-    #pragma comment(lib, "ws2_32.lib")
+    //#pragma comment(lib, "ws2_32.lib")
 
     #define IS_WINDOWS 1
 
     #define socket_cleanup() WSACleanup()
+    #define socket_start() WSADATA WSAData; WSAStartup(MAKEWORD(2,0), &WSAData);
 
 #endif
+
 
 enum ERROR_CODES {
     SOCKET_ATTRIBUTION_ERROR = -1,
@@ -41,6 +43,7 @@ typedef struct socket_handler {
     SSL* ssl;
     SSL_CTX* ctx;
 } SocketHandler;
+
 
 char socket_ssl_server_init(SocketHandler* server, const char* server_ip, uint16_t server_port, int max_connections, const char* public_key_fp, const char* private_key_fp);
 char socket_ssl_client_init(SocketHandler* client, const char* server_ip, uint16_t server_port, const char* sni_hostname);

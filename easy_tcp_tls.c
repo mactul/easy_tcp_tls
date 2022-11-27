@@ -1,5 +1,4 @@
 #include "easy_tcp_tls.h"
-#include <errno.h>
 
 //https://wiki.openssl.org/index.php/Simple_TLS_Server
 
@@ -36,11 +35,6 @@ char socket_ssl_client_init(SocketHandler* client, const char* server_ip, uint16
 
 char socket_client_init(SocketHandler* client, const char* server_ip, uint16_t server_port)
 {
-    #ifdef IS_WINDOWS
-        WSADATA WSAData;
-        WSAStartup(MAKEWORD(2,0), &WSAData);
-    #endif
-
     struct sockaddr_in my_addr;
     client->fd = socket(AF_INET, SOCK_STREAM, 0);
     
@@ -56,9 +50,10 @@ char socket_client_init(SocketHandler* client, const char* server_ip, uint16_t s
     
     // This ip address is the server ip address
     my_addr.sin_addr.s_addr = inet_addr(server_ip);
-    
     if (connect(client->fd, (struct sockaddr*) &my_addr, sizeof my_addr) != 0)
+    {
         return CONNECTION_REFUSED;
+    }
     
     return 0;
 }
@@ -152,7 +147,9 @@ char socket_accept(SocketHandler* client, SocketHandler* server, ClientData* pcl
 int socket_send(SocketHandler* s, const char* buffer, int n, int flags)
 {
     if(s->ssl == NULL)
+    {
         return send(s->fd, buffer, n, flags);
+    }
     else
     {
         return SSL_write(s->ssl, buffer, n);

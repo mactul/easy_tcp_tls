@@ -8,6 +8,8 @@ int main()
     char buffer[1024];
     SocketHandler server_handler;
     SocketHandler client_handler;
+
+    socket_start();  // This is for Windows compatibility, it do nothing on Linux.
     
     printf("%d\n", socket_ssl_server_init(&server_handler, "127.0.0.1", 3678, 1, "cert.pem", "key.pem"));
     
@@ -20,5 +22,5 @@ int main()
     socket_close(&server_handler);
     socket_close(&client_handler);
 
-    socket_cleanup();
+    socket_cleanup();  // again, for Windows compatibility
 }
