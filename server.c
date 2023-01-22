@@ -1,26 +1,42 @@
-#include "easy_tcp_tls.h"
+#include <stdint.h>  // this header have to be included before "easy_tcp_tls.h"
 #include <stdio.h>
+#include "easy_tcp_tls.h"
 
-//openssl req -x509 -newkey rsa:4096 -nodes -out ./cert.pem -keyout ./key.pem -days 365
+// generate key.pem and cert.pem with this shell command
+// openssl req -x509 -newkey rsa:4096 -nodes -out ./cert.pem -keyout ./key.pem -days 365
 
 int main()
 {
     char buffer[1024];
-    SocketHandler server_handler;
-    SocketHandler client_handler;
+    SocketHandler* server_handler;
+    SocketHandler* client_handler;
+    ClientData infos;
 
     socket_start();  // This is for Windows compatibility, it do nothing on Linux.
     
-    printf("%d\n", socket_ssl_server_init(&server_handler, "127.0.0.1", 3678, 1, "cert.pem", "key.pem"));
+    server_handler = socket_ssl_server_init("127.0.0.1", 3678, 1, "cert.pem", "key.pem");
     
-    printf("%d\n", socket_accept(&client_handler, &server_handler, NULL));
+    if(server_handler == NULL)
+    {
+        socket_print_last_error();
+        return 1;
+    }
 
-    socket_recv(&client_handler, buffer, sizeof(buffer), 0);
+    client_handler = socket_accept(server_handler, &infos);  // We can also use NULL instead of &infos if we don't care about client infos
+    if(client_handler == NULL)
+    {
+        socket_print_last_error();
+        return 1;
+    }
 
-    printf("%s\n", buffer);
+    printf("New client connected at:\n\tip: %s\n\tport: %d\n\n", infos.ip, infos.port);
 
-    socket_close(&server_handler);
-    socket_close(&client_handler);
+    socket_recv(client_handler, buffer, sizeof(buffer), 0);
+
+    printf("Message received: \"%s\"\n", buffer);
+
+    socket_close(&client_handler);  // this is very important because it will free all structures
+    socket_close(&server_handler);  // obviously, same comment
 
     socket_cleanup();  // again, for Windows compatibility
 }

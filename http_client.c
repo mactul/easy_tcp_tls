@@ -1,3 +1,6 @@
+#include <stdint.h>
+#include <string.h>
+#include <stdio.h>
 #include "easy_tcp_tls.h"
 
 /*********************************************************/
@@ -14,7 +17,7 @@
 
 int main()
 {
-    SocketHandler client_handler;
+    SocketHandler* client_handler;
     char buffer[1024];
     char headers[] = "GET / HTTP/1.1\r\n"
         "Host: cdd-cloud.ml\r\n"
@@ -23,15 +26,23 @@ int main()
     
     socket_start();  // This is for Windows compatibility, it do nothing on Linux.
     
-    socket_ssl_client_init(&client_handler, "185.163.124.98", 443, "cdd-cloud.ml");
+    client_handler = socket_ssl_client_init("185.163.124.98", 443, "cdd-cloud.ml");
 
-    socket_send(&client_handler, headers, strlen(headers)+1, 0);
+    if(client_handler == NULL)
+    {
+        socket_print_last_error();
+        return 1;
+    }
 
-    socket_recv(&client_handler, buffer, sizeof(buffer), 0);
+    socket_send(client_handler, headers, strlen(headers)+1, 0);
+
+    socket_recv(client_handler, buffer, sizeof(buffer), 0);
 
     printf("%s\n", buffer);
 
-    socket_close(&client_handler);
+    socket_close(&client_handler);  // this is very important because it will free all structures
 
     socket_cleanup();  // again, for Windows compatibility
+
+    return 0;
 }
