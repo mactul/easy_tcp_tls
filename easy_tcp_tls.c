@@ -80,6 +80,12 @@ void socket_print_last_error(void)
         case SSL_ACCEPT_FAILED:
             printf("SSL accept failed\n");
             break;
+        case SSL_CTX_CREATION_FAILED:
+            printf("SSL_CTX_new returns NULL, check the openssl documentation\n");
+            break;
+        case SSL_CREATION_FAILED:
+            printf("SSL_new returns NULL, check the openssl documentation\n");
+            break;
         default:
             printf("no relevant error to print\n");
             break;
@@ -99,7 +105,20 @@ SocketHandler* socket_ssl_client_init(const char* server_ip, uint16_t server_por
         return NULL;
 
     client->ctx = SSL_CTX_new(SSLv23_client_method());
+    if(client->ctx == NULL)
+    {
+        _error_code = SSL_CTX_CREATION_FAILED;
+        socket_close(&client);
+        return NULL;
+    }
     client->ssl = SSL_new(client->ctx);
+    if(client->ssl == NULL)
+    {
+        _error_code = SSL_CREATION_FAILED;
+        socket_close(&client);
+        return NULL;
+    }
+
     if(sni_hostname == NULL)
     {
         SSL_set_tlsext_host_name(client->ssl, server_ip);
@@ -113,6 +132,7 @@ SocketHandler* socket_ssl_client_init(const char* server_ip, uint16_t server_por
     if (SSL_connect(client->ssl) == -1)
     {
         _error_code = SSL_CONNECTION_REFUSED;
+        socket_close(&client);
         return NULL;
     }
 
@@ -128,6 +148,12 @@ SocketHandler* socket_client_init(const char* server_ip, uint16_t server_port)
 
     client = (SocketHandler*) malloc(sizeof(SocketHandler));
 
+    if(client == NULL)
+    {
+        // out of memory, stop everything
+        exit(1);
+    }
+
     client->fd = socket(AF_INET, SOCK_STREAM, 0);
     
     client->ssl = NULL;
@@ -136,6 +162,7 @@ SocketHandler* socket_client_init(const char* server_ip, uint16_t server_port)
     if (client->fd < 0)
     {
         _error_code = SOCKET_ATTRIBUTION_ERROR;
+        free(client);
         return NULL;
     }
     
@@ -148,6 +175,7 @@ SocketHandler* socket_client_init(const char* server_ip, uint16_t server_port)
     if (connect(client->fd, (struct sockaddr*) &my_addr, sizeof my_addr) != 0)
     {
         _error_code = CONNECTION_REFUSED;
+        free(client);
         return NULL;
     }
     
@@ -168,15 +196,23 @@ SocketHandler* socket_ssl_server_init(const char* server_ip, uint16_t server_por
         return NULL;
 
     server->ctx = SSL_CTX_new(SSLv23_server_method());
+    if(server->ctx == NULL)
+    {
+        _error_code = SSL_CTX_CREATION_FAILED;
+        socket_close(&server);
+        return NULL;
+    }
 
     if(SSL_CTX_use_certificate_file(server->ctx, public_key_fp, SSL_FILETYPE_PEM) <= 0)
     {
         _error_code = WRONG_PUBLIC_KEY_FP;
+        socket_close(&server);
         return NULL;
     }
     if(SSL_CTX_use_PrivateKey_file(server->ctx, private_key_fp, SSL_FILETYPE_PEM) <= 0)
     {
         _error_code = WRONG_PRIVATE_KEY_FP;
+        socket_close(&server);
         return NULL;
     }
 
@@ -191,9 +227,23 @@ SocketHandler* socket_server_init(const char* server_ip, uint16_t server_port, i
 
     server = (SocketHandler*) malloc(sizeof(SocketHandler));
 
+    if(server == NULL)
+    {
+        // out of memory, stop everything
+        exit(1);
+    }
+
     server->fd = socket(AF_INET, SOCK_STREAM, 0);
     server->ssl = NULL;
     server->ctx = NULL;
+
+    if (server->fd < 0)
+    {
+        _error_code = SOCKET_ATTRIBUTION_ERROR;
+        free(server);
+        return NULL;
+    }
+
     struct timeval tv;
 
     struct sockaddr_in my_addr;
@@ -210,12 +260,14 @@ SocketHandler* socket_server_init(const char* server_ip, uint16_t server_port, i
     if (bind(server->fd, (struct sockaddr*) &my_addr, sizeof(my_addr)) != 0)
     {
         _error_code = UNABLE_TO_BIND;
+        free(server);
         return NULL;
     }
          
     if (listen(server->fd, max_connections) != 0)
     {
         _error_code = UNABLE_TO_LISTEN;
+        free(server);
         return NULL;
     }
     
@@ -232,6 +284,12 @@ SocketHandler* socket_accept(SocketHandler* server, ClientData* pclient_data)
 
     client = (SocketHandler*) malloc(sizeof(SocketHandler));
 
+    if(client == NULL)
+    {
+        // out of memory, stop everything
+        exit(1);
+    }
+
     client->fd = accept(server->fd, (struct sockaddr*) &peer_addr, &addr_size);
     client->ssl = NULL;
     client->ctx = NULL;
@@ -239,6 +297,7 @@ SocketHandler* socket_accept(SocketHandler* server, ClientData* pclient_data)
     if(client->fd <= 0)
     {
         _error_code = ACCEPT_FAILED;
+        socket_close(&client);
         return NULL;
     }
 
@@ -255,6 +314,7 @@ SocketHandler* socket_accept(SocketHandler* server, ClientData* pclient_data)
         if(SSL_accept(client->ssl) <= 0)
         {
             _error_code = SSL_ACCEPT_FAILED;
+            socket_close(&client);
             return NULL;
         }
     }

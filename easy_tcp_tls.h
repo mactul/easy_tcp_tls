@@ -9,7 +9,9 @@ enum ERROR_CODES {
     WRONG_PRIVATE_KEY_FP = -6,
     SSL_CONNECTION_REFUSED = -7,
     ACCEPT_FAILED = -8,
-    SSL_ACCEPT_FAILED = -9
+    SSL_ACCEPT_FAILED = -9,
+    SSL_CTX_CREATION_FAILED = -10,
+    SSL_CREATION_FAILED = -11
 };
 
 typedef struct client_data {
