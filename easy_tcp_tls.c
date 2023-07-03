@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <openssl/ssl.h>
 #include "easy_tcp_tls.h"
 
@@ -28,6 +29,30 @@ struct socket_handler {
 };
 
 static int _error_code = 0;
+
+static char* uint16_to_str(char* result, uint16_t n)
+{
+    int i = 0;
+    int j = 0;
+    do
+    {
+        result[i] = n % 10 + '0';
+        i++;
+    } while ((n /= 10) > 0);
+    result[i] = '\0';
+    i--;
+
+    while(j < i)
+    {
+        char c = result[j];
+        result[j] = result[i];
+        result[i] = c;
+        j++;
+        i--;
+    }
+    return result;
+}
+
 
 void socket_start(void)
 {
@@ -170,6 +195,48 @@ SocketHandler* socket_ssl_client_init(const char* server_hostname, uint16_t serv
     return client;
 }
 
+char set_blocking_mode(int fd, char blocking)
+{
+   if (fd < 0) return 0;
+
+#ifdef _WIN32
+   unsigned long mode = blocking ? 0 : 1;
+   return (ioctlsocket(fd, FIONBIO, &mode) == 0) ? 1 : 0;
+#else
+   int flags = fcntl(fd, F_GETFL, 0);
+   if (flags == -1) return 0;
+   flags = blocking ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK);
+   return (fcntl(fd, F_SETFL, flags) == 0) ? 1 : 0;
+#endif
+}
+
+char timeout_connect(int fd, const struct sockaddr* name, int namelen, int timeout_sec)
+{
+    fd_set fdset;
+    struct timeval tv;
+    int r;
+
+    set_blocking_mode(fd, 0);
+    connect(fd, name, namelen);
+    set_blocking_mode(fd, 1);
+
+    FD_ZERO(&fdset);
+    FD_SET(fd, &fdset);
+    tv.tv_sec = timeout_sec;
+    tv.tv_usec = 0;
+    r = select(fd + 1, NULL, &fdset, NULL, &tv) == 1;
+    #ifndef IS_WINDOWS
+        if(r)
+        {
+            int so_error;
+            socklen_t len = sizeof so_error;
+            getsockopt(fd, SOL_SOCKET, SO_ERROR, &so_error, &len);
+            r = so_error == 0;
+        }
+    #endif
+    return r;
+}
+
 SocketHandler* socket_client_init(const char* server_hostname, uint16_t server_port)
 {
     struct addrinfo hints;
@@ -190,9 +257,9 @@ SocketHandler* socket_client_init(const char* server_hostname, uint16_t server_p
     hints.ai_family = AF_UNSPEC;       /* Allow IPv4 or IPv6 */
     hints.ai_socktype = SOCK_STREAM;   /* TCP socket */
     hints.ai_flags = 0;
-    hints.ai_protocol = 0;   /* Any protocol */
+    hints.ai_protocol = IPPROTO_TCP;   /* Any protocol */
 
-    if(getaddrinfo(server_hostname, itoa(server_port, str_server_port, 10), &hints, &result))
+    if(getaddrinfo(server_hostname, uint16_to_str(str_server_port, server_port), &hints, &result))
     {
         _error_code = UNABLE_TO_FIND_ADDRESS;
         free(client);
@@ -200,12 +267,12 @@ SocketHandler* socket_client_init(const char* server_hostname, uint16_t server_p
     }
 
     for(rp = result; rp != NULL; rp = rp->ai_next)
-    {
+    {   
         client->fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
         if (client->fd == -1)
             continue;
 
-        if (connect(client->fd, rp->ai_addr, rp->ai_addrlen) != -1)
+        if (timeout_connect(client->fd, rp->ai_addr, rp->ai_addrlen, 10))
             break;                  /* Success */
 
         close(client->fd);
@@ -297,7 +364,7 @@ SocketHandler* socket_server_init(const char* server_hostname, uint16_t server_p
     hints.ai_addr = NULL;
     hints.ai_next = NULL;
 
-    if(getaddrinfo(server_hostname, itoa(server_port, str_server_port, 10), &hints, &result))
+    if(getaddrinfo(server_hostname, uint16_to_str(str_server_port, server_port), &hints, &result))
     {
         _error_code = UNABLE_TO_FIND_ADDRESS;
         free(server);
