@@ -46,6 +46,8 @@ socket_cleanup();
 ```
 This is needed for windows compatibility.
 
+**/!\\ Warning, on windows `socket_cleanup()` will destroy all the sockets, do not use it on a library for example**
+
 ### __Functions__
 
 `void socket_start(void)`
@@ -56,42 +58,42 @@ This is needed for windows compatibility.
 - coupled with the function above, it will tell windows that the program doesn't need sockets anymore.
 - In theorie, it can't fail.
 
-`SocketHandler* socket_client_init(const char* server_ip, uint16_t server_port)`
+`SocketHandler* socket_client_init(const char* server_hostname, uint16_t server_port)`
 - This function will create the socket and returns a socket handler.
 - **parameters:**
-    - `server_ip`: the targeted server ip, formated like "127.0.0.1"
-    - `port`: the opened server port that listen the connection
+    - `server_hostname`: the targeted server host name, formated like "127.0.0.1", like "2001:0db8:85a3:0000:0000:8a2e:0370:7334" or like "example.com"
+    - `server_port`: the opened server port that listen the connection
 - **returns:**
     - when it succeeds, it returns a pointer to a structure handler.
     - when it fails, it returns `NULL` and `socket_print_last_error()` can tell what happened
 
-`SocketHandler* socket_ssl_client_init(const char* server_ip, uint16_t server_port, const char* sni_hostname)`
+`SocketHandler* socket_ssl_client_init(const char* server_hostname, uint16_t server_port, const char* sni_hostname)`
 - This function works like socket_client_init, but it will create an ssl secured socket connexion.
 - **parameters:**
-    - `server_ip`: the targeted server ip, formated like "127.0.0.1"
-    - `port`: the opened server port that listen the connection
-    - `sni_hostname`: this is especially for web applications, when a single ip adress can have multiple services. If it's set to NULL, it will take the value of server_ip, otherwise, you must set the domain name of the server.
+    - `server_hostname`: the targeted server ip, formated like "127.0.0.1", like "2001:0db8:85a3:0000:0000:8a2e:0370:7334" or like "example.com"
+    - `server_port`: the opened server port that listen the connection
+    - `sni_hostname`: this is especially for web applications, when a single ip adress can have multiple services. If it's set to NULL, it will take the value of server_hostname, otherwise, you must set the domain name of the server.
 - **returns:**
     - when it succeeds, it returns a pointer to a structure handler.
     - when it fails, it returns `NULL` and `socket_print_last_error()` can tell what happened
 
-`SocketHandler* socket_server_init(const char* server_ip, uint16_t server_port, int max_connections)`
+`SocketHandler* socket_server_init(const char* server_hostname, uint16_t server_port, int max_connections)`
 - This function will create a server instance
 - **parameters:**
-    - `server_ip`: this is always the ip of the machine or the localhost ip: "127.0.0.1"
-    - `port`: the port you want to use listen. make sure it's not already taken or you will have an `UNABLE_TO_BIND` error. If your server isn't local, make sure your port is opened on your firewall.
+    - `server_hostname`: this is always the hostname of the machine. For local applications it can be "127.0.0.1" or "localhost"
+    - `server_port`: the port you want to use listen. make sure it's not already taken or you will have an `UNABLE_TO_BIND` error. If your server isn't local, make sure your port is opened on your firewall.
     - `max_connections`: The posix documentation is not realy clear with the role of this backlog parameter, but it provide a hint for the compiler. This parameter should not be used to physically limit a server.
 - **returns:**
     - when it succeeds, it returns a pointer to a structure handler.
     - when it fails, it returns `NULL` and `socket_print_last_error()` can tell what happened
 
-`SocketHandler* socket_ssl_server_init(const char* server_ip, uint16_t server_port, int max_connections, const char* public_key_fp, const char* private_key_fp)`
+`SocketHandler* socket_ssl_server_init(const char* server_hostname, uint16_t server_port, int max_connections, const char* public_key_fp, const char* private_key_fp)`
 - This function will create an ssl secured server instance
 - You must generate a public and a private key with this command
     - `openssl req -x509 -newkey rsa:4096 -nodes -out ./cert.pem -keyout ./key.pem -days 365`
 - **parameters:**
-    - `server_ip`: this is always the ip of the machine or the localhost ip: "127.0.0.1"
-    - `port`: the port you want to use listen. make sure it's not already taken or you will have an `UNABLE_TO_BIND` error. If your server isn't local, make sure your port is opened on your firewall.
+    - `server_hostname`: this is always the ip of the machine or the localhost ip: "127.0.0.1"
+    - `server_port`: the port you want to use listen. make sure it's not already taken or you will have an `UNABLE_TO_BIND` error. If your server isn't local, make sure your port is opened on your firewall.
     - `max_connections`: The posix documentation is not realy clear with the role of this backlog parameter, but it provide a hint for the compiler. This parameter should not be used to physically limit a server.
     - `public_key_fp`: the path for your `cert.pem` file
     - `private_key_fp`: the path for your `key.pem` file
